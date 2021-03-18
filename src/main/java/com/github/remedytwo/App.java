@@ -7,7 +7,7 @@ import net.dv8tion.jda.api.JDABuilder;
 
 public class App
 {
-    static String token = "MjA4MjU3NzUzMjI2MDE4ODE2.V5oxJQ.qUypfHAmMBmkxgL7_S67DjFnv7w";
+    static String token;
     public static void main(String[] args) 
     {
         try

@@ -30,6 +30,7 @@ dependencies
 {
     implementation 'net.dv8tion:JDA:4.2.0_241'
     compile 'net.dv8tion:JDA:4.2.0_241'
+    compile "net.bramp.ffmpeg:ffmpeg:0.6.2"
 }
 
 mainClassName = "src.main.java.com.github.remedytwo.App"

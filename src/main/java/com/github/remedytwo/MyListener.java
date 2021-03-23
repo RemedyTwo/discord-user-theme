@@ -83,13 +83,13 @@ public class MyListener extends ListenerAdapter
                     File result = ffmpeg(image, music, seek);
                     
                     logger.info("Sending video...");
-                    channel.sendFile(result).queue();
+                    channel.sendMessage(user.getAsMention()).addFile(result).queue();
                     logger.info("Video sent");
 
                     logger.info("Deleting files...");
                     while(music.exists() || image.exists() || result.exists())
                     {
-                        emptyFolder(new File("ressources/"));
+                        emptyFolder(new File("resources/"));
                     }
                     logger.info("Files deleted");
                 }
@@ -116,9 +116,9 @@ public class MyListener extends ListenerAdapter
             URL file_url = new URL(image_url);
             logger.info("Downloading avatar...");
             InputStream in = file_url.openStream();
-            Files.copy(in, Paths.get("ressources/image" + getExtension(file_url)), StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(in, Paths.get("resources/image" + getExtension(file_url)), StandardCopyOption.REPLACE_EXISTING);
             logger.info("Avatar downloaded");
-            return new File("ressources/image" + getExtension(file_url));
+            return new File("resources/image" + getExtension(file_url));
         }
         catch (IOException e)
         {
@@ -129,7 +129,7 @@ public class MyListener extends ListenerAdapter
 
     private File youtubedl(String url) throws IllegalArgumentException, MalformedURLException
     {
-        String[] cmd = {"lib/youtube-dl", "--extract-audio", "--audio-format", "mp3", "-o", "ressources/\"music.mp3\"", url};
+        String[] cmd = {"lib/youtube-dl", "--extract-audio", "--audio-format", "mp3", "-o", "resources/\"music.mp3\"", url};
         logger.info(arrayToString(cmd));
         ProcessBuilder pb = new ProcessBuilder(cmd);
         pb.redirectErrorStream(true);
@@ -162,7 +162,7 @@ public class MyListener extends ListenerAdapter
         {
             logger.debug(e.toString());
         }
-        File file = new File("ressources/music.mp3");
+        File file = new File("resources/music.mp3");
         if (file.length() > 8000000 || file.length() == 0)
         {
             logger.info("Music is too heavy (" + file.length() + ")");
@@ -175,13 +175,23 @@ public class MyListener extends ListenerAdapter
     private File ffmpeg(File image, File music, int[] seek) throws IllegalArgumentException
     {
         String[] cmd = {""};
-        if (image.getName().contains(".gif")) //TODO: il y a peut-être une manière plus efficace de check le type du fichier
+        // pour les png
+        if (image.getName().contains(".png"))
         {
-            cmd = new String[]{"ffmpeg", "-ignore_loop", "0", "-i", "\"" + image.getPath() + "\"", "-ss", String.format("%02d", seek[0]) + ":" + String.format("%02d", seek[1]) + ":" + String.format("%02d", seek[2]), "-i", "\"" + music.getPath() + "\"", "-c:v", "libx264", "-crf", "40", "-c:a", "copy", "-shortest", "-y", "-strict", "-2", "ressources/result.mp4"};
+            // output : lib/ffmpeg -loop 1 -f image2 -r 1 -i imagepath -ss time -i musicpath -c:v libx264 -pix_fmt yuv420p -c:a copy -shortest -y -strict -2 result.mp4
+            cmd = new String[]{"lib/ffmpeg", "-loop", "1", "-f", "image2", "-r", "1", "-i", "\"" + image.getPath() + "\"", "-ss", String.format("%02d", seek[0]) + ":" + String.format("%02d", seek[1]) + ":" + String.format("%02d", seek[2]), "-i", "\"" + music.getPath() + "\"", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "copy", "-shortest", "-y", "-strict", "-2", "resources/result.mp4"};
         }
-        else if (image.getName().contains(".png"))
+        // pour les gifs
+        else if (image.getName().contains(".gif")) //TODO: il y a peut-être une manière plus efficace de check le type du fichier
         {
-            cmd = new String[]{"lib/ffmpeg", "-loop", "1", "-f", "image2", "-r", "1", "-i", "\"" + image.getPath() + "\"", "-ss", String.format("%02d", seek[0]) + ":" + String.format("%02d", seek[1]) + ":" + String.format("%02d", seek[2]), "-i", "\"" + music.getPath() + "\"", "-c:v", "libx264", "-c:a", "copy", "-shortest", "-y", "-strict", "-2", "ressources/result.mp4"};
+            // output : lib/ffmpeg -ignore_loop 0 -i imagepath -ss time -i musicpath -c:v libx264 -pix_fmt yuv420p -crf 40 -c:a copy -shortest -y -strict -2 result.mp4
+            cmd = new String[]{"lib/ffmpeg", "-ignore_loop", "0", "-i", "\"" + image.getPath() + "\"", "-ss", String.format("%02d", seek[0]) + ":" + String.format("%02d", seek[1]) + ":" + String.format("%02d", seek[2]), "-i", "\"" + music.getPath() + "\"", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "40", "-c:a", "copy", "-shortest", "-y", "-strict", "-2", "resources/result.mp4"};
+        }
+        // pour les jpg
+        else if (image.getName().contains(".jpg") || image.getName().contains(".jpeg"))
+        {
+            // output : lib/ffmpeg -loop 1 -f image2 -r 1 -i imagepath -ss time -i musicpath -c:a copy -shortest -y -strict -2 result.mp4
+            cmd = new String[]{"lib/ffmpeg", "-loop", "1", "-f", "image2", "-r", "1", "-i", "\"" + image.getPath() + "\"", "-ss", String.format("%02d", seek[0]) + ":" + String.format("%02d", seek[1]) + ":" + String.format("%02d", seek[2]), "-i", "\"" + music.getPath() + "\"", "-c:a", "copy", "-shortest", "-y", "-strict", "-2", "resources/result.mp4"};
         }
         logger.info(arrayToString(cmd));
         ProcessBuilder pb = new ProcessBuilder(cmd);
@@ -210,7 +220,7 @@ public class MyListener extends ListenerAdapter
         {
             logger.debug(e.toString());
         }
-        File file = new File("ressources/result.mp4");
+        File file = new File("resources/result.mp4");
         if (file.length() > 8000000 || file.length() == 0)
         {
             logger.info("Assembled video is too heavy (" + file.length() + ")");

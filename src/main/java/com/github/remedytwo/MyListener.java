@@ -58,8 +58,8 @@ public class MyListener extends ListenerAdapter
                 logger.info("Second text set : " + text_b);
 
                 String[] cmd = {"lib/ffmpeg.exe", "-i", "resources/meme/meme.mp4", "-vf", 
-                "[in]drawtext=\"fontfile=resources/meme/arial.ttf:", "textfile=resources/bin/text1.txt:", "fontcolor=black:", "fontsize=30:", "x=(w-text_w)/2/2:", "y=(h-text_h)/2/2/2/2,", 
-                "drawtext=fontfile=resources/meme/arial.ttf:", "textfile=resources/bin/text2.txt:", "fontcolor=black:", "fontsize=30:", "x=((w-text_w)/2)+((w-text_w)/2/2):", "y=(h-text_h)/2/2/2/2[out]\"", 
+                "\"[in]drawtext=fontfile=resources/meme/arial.ttf:", "textfile=resources/bin/text1.txt:", "fontcolor=black:", "fontsize=30:", "x=(w/4)-(text_w/2):", "y=(h-text_h)/2/2/2/2,", 
+                "drawtext=fontfile=resources/meme/arial.ttf:", "textfile=resources/bin/text2.txt:", "fontcolor=black:", "fontsize=30:", "x=((w/2)+(w/4))-(text_w/2):", "y=(h-text_h)/2/2/2/2[out]\"", 
                 "-codec:a", "copy", "-y", "resources/bin/final.mp4"};
                 try
                 {
@@ -128,7 +128,7 @@ public class MyListener extends ListenerAdapter
                 File result = ffmpeg(cmd, new File("resources/bin/result.mp4"));
                 
                 logger.info("Sending video...");
-                channel.sendMessage(user.getAsMention()).addFile(result).queue();
+                channel.sendMessage(user.getAsMention()).addFile(result, user.getName() + "'s_theme.mp4").queue();
                 logger.info("Video sent");
 
                 logger.info("Deleting files...");

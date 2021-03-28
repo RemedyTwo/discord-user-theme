@@ -14,25 +14,27 @@ version = '1.0'
 
 jar 
 {
-    manifest
-    {
-        attributes 'Implementation-Title': 'Gradle Quickstart',
-        'Implementation-Version': version
-    }
+  manifest
+  {
+    attributes 'Implementation-Title': 'Gradle Quickstart',
+    'Implementation-Version': version
+  }
 }
 
-repositories
+repositories 
 {
-    jcenter() 
+  mavenCentral()
+  jcenter()
+  {
+    name 'm2-dv8tion'
+    url 'https://m2.dv8tion.net/releases'
+  }
 }
 
 dependencies
 {
-    implementation 'net.dv8tion:JDA:4.2.0_241'
-    compile 'net.dv8tion:JDA:4.2.0_241'
-    compile "net.bramp.ffmpeg:ffmpeg:0.6.2"
-    compile("ch.qos.logback:logback-classic:1.2.3")
-
+  implementation 'net.dv8tion:JDA:4.2.0_249'
+  implementation 'org.slf4j:slf4j-api:1.7.25'
 }
 
 mainClassName = "com.github.remedytwo.App"

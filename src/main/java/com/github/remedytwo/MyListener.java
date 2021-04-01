@@ -46,20 +46,22 @@ public class MyListener extends ListenerAdapter
                 channel.sendTyping().queue();
 
                 String text_a = content.split(";")[1];
+                text_a = formatText(text_a.split(" "));
                 PrintWriter pw_a = new PrintWriter("resources/bin/text1.txt");
                 pw_a.println(text_a);
                 pw_a.close();
                 logger.info("First text set : " + text_a);
 
                 String text_b = content.split(";")[2];
+                text_b = formatText(text_b.split(" "));
                 PrintWriter pw_b = new PrintWriter("resources/bin/text2.txt");
                 pw_b.println(text_b);
                 pw_b.close();
                 logger.info("Second text set : " + text_b);
 
                 String[] cmd = {"lib/ffmpeg.exe", "-i", "resources/meme/meme.mp4", "-vf", 
-                "\"[in]drawtext=fontfile=resources/meme/arial.ttf:", "textfile=resources/bin/text1.txt:", "fontcolor=black:", "fontsize=30:", "x=(w/4)-(text_w/2):", "y=(h-text_h)/2/2/2/2,", 
-                "drawtext=fontfile=resources/meme/arial.ttf:", "textfile=resources/bin/text2.txt:", "fontcolor=black:", "fontsize=30:", "x=((w/2)+(w/4))-(text_w/2):", "y=(h-text_h)/2/2/2/2[out]\"", 
+                "\"[in]drawtext=fontfile=resources/meme/Consolas.ttf:", "textfile=resources/bin/text1.txt:", "fontcolor=black:", "fontsize=30:", "x=(w/4)-(text_w/2):", "y=(h-text_h)/2/2/2/2,", 
+                "drawtext=fontfile=resources/meme/Consolas.ttf:", "textfile=resources/bin/text2.txt:", "fontcolor=black:", "fontsize=30:", "x=((w/2)+(w/4))-(text_w/2):", "y=(h-text_h)/2/2/2/2[out]\"", 
                 "-codec:a", "copy", "-y", "resources/bin/final.mp4"};
                 try
                 {
@@ -314,5 +316,22 @@ public class MyListener extends ListenerAdapter
             return new String[]{"lib/ffmpeg", "-loop", "1", "-f", "image2", "-r", "1", "-i", "\"" + image.getPath() + "\"", "-ss", String.format("%02d", seek[0]) + ":" + String.format("%02d", seek[1]) + ":" + String.format("%02d", seek[2]), "-i", "\"" + music.getPath() + "\"", "-c:a", "copy", "-shortest", "-y", "-strict", "-2", "resources/bin/result.mp4"};
         }
         return null;
+    }
+
+    private String formatText(String[] tab)
+    {
+        int compte = 0;
+        String result = "";
+        for(int i = 0; i < tab.length; i++)
+        {
+            compte+= tab[i].length();
+            if(compte >= 15)
+            {
+                tab[i] += "\n";
+                compte = 0;
+            }
+            result += tab[i] + " ";
+        }
+        return result;
     }
 }

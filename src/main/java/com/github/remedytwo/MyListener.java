@@ -16,13 +16,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.dv8tion.jda.api.entities.Message;
-import net.dv8tion.jda.api.entities.MessageChannel;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 
 public class MyListener extends ListenerAdapter 
 {
+    private final File ffmpeg = new File("tools/ffmpeg.exe");
+    private final File ffprobe = new File("tools/ffprobe.exe");
+    private final File youtubedl = new File("tools/youtube-dl.exe");
+
     final Logger logger = LoggerFactory.getLogger(MyListener.class);
 
     @Override
@@ -58,6 +61,20 @@ public class MyListener extends ListenerAdapter
         logger.info("Files deleted");
     }
 
+    private void emptyFolder(File folder)
+    {
+        while(folder.listFiles().length != 0)
+        {
+            for(File file: folder.listFiles())
+            {
+                if (!file.isDirectory()) 
+                {
+                    file.delete();
+                }
+            }
+        }
+    }
+
     private void commandMeme(Message message)
     {
         logger.info("Command found: \"" + message.getContentRaw() + "\"");
@@ -65,13 +82,13 @@ public class MyListener extends ListenerAdapter
             {
                 message.getChannel().sendTyping().queue();
 
-                String text_a = message.getContentRaw().split(";")[1];
+                String text_a = message.getContentRaw().split(" ")[1].split(";")[0];
                 text_a = formatText(text_a.split(" "));
                 PrintWriter pw_a = new PrintWriter("tmp/text1.txt");
                 pw_a.println(text_a);
                 pw_a.close();
                 logger.info("First text set : " + text_a);
-                String text_b = message.getContentRaw().split(";")[2];
+                String text_b = message.getContentRaw().split(" ")[1].split(";")[1];
                 text_b = formatText(text_b.split(" "));
                 PrintWriter pw_b = new PrintWriter("tmp/text2.txt");
                 pw_b.println(text_b);
@@ -80,12 +97,13 @@ public class MyListener extends ListenerAdapter
 
                 try
                 {
-                    String[] cmd = {"tools/ffmpeg.exe", "-i", "resources/meme.mp4", "-vf", 
+                    File meme = new File("tmp/final.mp4");
+                    String[] cmd = {ffmpeg.getPath(), "-i", "resources/meme.mp4", "-vf", 
                     "\"[in]drawtext=fontfile=resources/Consolas.ttf:", "textfile=tmp/text1.txt:", "fontcolor=black:", "fontsize=30:", "x=(w/4)-(text_w/2):", "y=(h-text_h)/2/2/2/2,", 
                     "drawtext=fontfile=resources/Consolas.ttf:", "textfile=tmp/text2.txt:", "fontcolor=black:", "fontsize=30:", "x=((w/2)+(w/4))-(text_w/2):", "y=(h-text_h)/2/2/2/2[out]\"", 
-                    "-codec:a", "copy", "-y", "tmp/final.mp4"};
+                    "-codec:a", "copy", "-y", meme.getPath()};
 
-                    File meme = launchCommand(cmd, new File("tmp/final.mp4"));
+                    launchCommand(cmd);
                     logger.info("Sending video...");
                     message.getChannel().sendMessage(message.getAuthor().getAsMention()).addFile(meme).queue();
                     logger.info("Video sent");
@@ -105,6 +123,23 @@ public class MyListener extends ListenerAdapter
             }
     }
 
+    private String formatText(String[] tab)
+    {
+        int compte = 0;
+        String result = "";
+        for(int i = 0; i < tab.length; i++)
+        {
+            compte+= tab[i].length();
+            if(compte >= 15)
+            {
+                tab[i] += "\n";
+                compte = 0;
+            }
+            result += tab[i] + " ";
+        }
+        return result;
+    }
+
     private void commandMontage(Message message)
     {
         logger.info("Command found: \"" + message.getContentRaw() + "\"");
@@ -116,16 +151,21 @@ public class MyListener extends ListenerAdapter
         int[] musicSeek = getYoutubeSeek(musicURL);
         File videoFile = new File("tmp/video.mp4");
         File musicFile = new File("tmp/music.mp3");
-        String[] videoCommand = {"tools/youtube-dl.exe", "-fbestvideo", "-o", "\"" + videoFile.getPath() + "\"", videoURL};
-        String[] musicCommand = {"tools/youtube-dl.exe", "--extract-audio", "--audio-format", "mp3", "-o", "\"" + musicFile.getPath() + "\"", musicURL};
-        videoFile = launchCommand(videoCommand, videoFile);
-        musicFile = launchCommand(musicCommand, musicFile);
+        String[] videoCommand = {youtubedl.getPath(), "-fbestvideo", "-o", "\"" + videoFile.getPath() + "\"", videoURL};
+        String[] musicCommand = {youtubedl.getPath(), "--extract-audio", "--audio-format", "mp3", "-o", musicFile.getPath(), musicURL};
+        launchCommand(videoCommand);
+        launchCommand(musicCommand);
         File output = new File("tmp/output.mp4");
-        String[] mixCommand = {"tools/ffmpeg.exe", 
+        String[] mixCommand = {ffmpeg.getPath(), 
         "-ss", String.format("%02d", videoSeek[0]) + ":" + String.format("%02d", videoSeek[1]) + ":" + String.format("%02d", videoSeek[2]), "-i", videoFile.getPath(), 
         "-ss", String.format("%02d", musicSeek[0]) + ":" + String.format("%02d", musicSeek[1]) + ":" + String.format("%02d", musicSeek[2]), "-i", musicFile.getPath(), 
         "-vcodec", "copy", "-acodec", "copy", "-map", "0:0", "-map", "1:0", output.getPath()};
-        output = launchCommand(mixCommand, output);
+        launchCommand(mixCommand);
+
+        if (output.length() > 8000000)
+        {
+            reduceVideoUnder8Mo(output);
+        }
 
         message.getChannel().sendFile(output).queue();
     }
@@ -165,19 +205,35 @@ public class MyListener extends ListenerAdapter
 
         String user_avatar_url = user.getAvatarUrl() + "?size=1024";
 
-        message.delete().queue();
-
         try
         {
-            String[] youtubedl_cmd = {"tools/youtube-dl.exe", "--extract-audio", "--audio-format", "mp3", "-o", "tmp/\"music.mp3\"", music_link};
-            File music = launchCommand(youtubedl_cmd, new File("tmp/music.mp3"));
-            File image = download(user_avatar_url);
+            File image = downloadAvatar(user_avatar_url);
 
-            String[] cmd = getCommandFromType(image, music, seek);
-            File result = launchCommand(cmd, new File("tmp/result.mp4"));
+            File music = new File("tmp/music.mp3");
+            String[] youtubedl_cmd = {youtubedl.getPath(), "--extract-audio", "--audio-format", "mp3", "-o", music.getPath(), music_link};
+            launchCommand(youtubedl_cmd);
+
+            File resultat = new File("tmp/result.mp4");
+            String[] cmd = {};
+            if (image.getName().contains(".png")) // pour les png
+            {
+                // output : tools/ffmpeg.exe -loop 1 -f image2 -r 1 -i imagepath -ss time -i musicpath -c:v libx264 -pix_fmt yuv420p -c:a copy -shortest -y -strict -2 result.mp4
+                cmd = new String[]{ffmpeg.getPath(), "-loop", "1", "-f", "image2", "-r", "1", "-i", "\"" + image.getPath() + "\"", "-ss", String.format("%02d", seek[0]) + ":" + String.format("%02d", seek[1]) + ":" + String.format("%02d", seek[2]), "-i", "\"" + music.getPath() + "\"", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "copy", "-shortest", "-y", "-strict", "-2", resultat.getPath()};
+            }
+            else if (image.getName().contains(".gif")) // pour les gifs
+            {
+                // output : tools/ffmpeg.exe -ignore_loop 0 -i imagepath -ss time -i musicpath -c:v libx264 -pix_fmt yuv420p -crf 40 -c:a copy -shortest -y -strict -2 result.mp4
+                cmd = new String[]{ffmpeg.getPath(), "-ignore_loop", "0", "-i", "\"" + image.getPath() + "\"", "-ss", String.format("%02d", seek[0]) + ":" + String.format("%02d", seek[1]) + ":" + String.format("%02d", seek[2]), "-i", "\"" + music.getPath() + "\"", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "40", "-c:a", "copy", "-shortest", "-y", "-strict", "-2", resultat.getPath()};
+            }
+            else if (image.getName().contains(".jpg") || image.getName().contains(".jpeg")) // pour les jpg
+            {
+                // output : tools/ffmpeg.exe -loop 1 -f image2 -r 1 -i imagepath -ss time -i musicpath -c:a copy -shortest -y -strict -2 result.mp4
+                cmd = new String[]{ffmpeg.getPath(), "-loop", "1", "-f", "image2", "-r", "1", "-i", "\"" + image.getPath() + "\"", "-ss", String.format("%02d", seek[0]) + ":" + String.format("%02d", seek[1]) + ":" + String.format("%02d", seek[2]), "-i", "\"" + music.getPath() + "\"", "-c:a", "copy", "-shortest", "-y", "-strict", "-2", resultat.getPath()};
+            }
+            launchCommand(cmd);
             
             logger.info("Sending video...");
-            message.getChannel().sendMessage(user.getAsMention()).addFile(result, user.getName() + "'s_theme.mp4").queue();
+            message.getChannel().sendMessage(user.getAsMention()).addFile(resultat, user.getName() + "'s_theme.mp4").queue();
             logger.info("Video sent");
         }
         catch (IllegalArgumentException e)
@@ -186,25 +242,7 @@ public class MyListener extends ListenerAdapter
         }
     }
 
-    private File download(String image_url)
-    {
-        try
-        {
-            URL file_url = new URL(image_url);
-            logger.info("Downloading avatar...");
-            InputStream in = file_url.openStream();
-            Files.copy(in, Paths.get("tmp/image" + getExtension(file_url)), StandardCopyOption.REPLACE_EXISTING);
-            logger.info("Avatar downloaded");
-            return new File("tmp/image" + getExtension(file_url));
-        }
-        catch (IOException e)
-        {
-            logger.debug(e.toString());
-        }
-        return null;
-    }
-
-    private File launchCommand(String[] command, File resultat)
+    private String launchCommand(String[] command)
     {
         logger.info(arrayToString(command));
         ProcessBuilder pb = new ProcessBuilder(command);
@@ -214,10 +252,12 @@ public class MyListener extends ListenerAdapter
         {
             process = pb.start();
             Scanner scanner = new Scanner(process.getInputStream());
+            String out = "";
             while (scanner.hasNextLine())
             {
                 String ligne = scanner.nextLine();
                 logger.info(ligne);
+                out += ligne;
             }
             try
             {
@@ -227,38 +267,16 @@ public class MyListener extends ListenerAdapter
             {
                 process.destroy();
             }
+            scanner.close();
+            return out;
         }
         catch (IOException e)
         {
             logger.debug(e.toString());
         }
-        return resultat;
+        return "";
     }
     
-    private String getExtension(URL file_url)
-    {
-        int i = String.valueOf(file_url).length() - 1;
-        while(String.valueOf(file_url).charAt(i) != '.')
-        {
-            i--;
-        }
-        return String.valueOf(file_url).substring(i, String.valueOf(file_url).length() - 10);
-    }
-
-    private void emptyFolder(File folder)
-    {
-        while(folder.listFiles().length != 0)
-        {
-            for(File file: folder.listFiles())
-            {
-                if (!file.isDirectory()) 
-                {
-                    file.delete();
-                }
-            }
-        }
-    }
-
     private String arrayToString(String[] array)
     {
         String string = "";
@@ -268,8 +286,7 @@ public class MyListener extends ListenerAdapter
         }
         return string;
     }
-
-    // exemple : https://youtu.be/zldORaRtdMw?t=205
+  
     private int[] getYoutubeSeek(String url)
     {
         if (url.contains("?t="))
@@ -292,40 +309,49 @@ public class MyListener extends ListenerAdapter
         }
     }
 
-    private String[] getCommandFromType(File image, File music, int[] seek)
+    private File downloadAvatar(String image_url)
     {
-        if (image.getName().contains(".png")) // pour les png
+        try
         {
-            // output : tools/ffmpeg.exe -loop 1 -f image2 -r 1 -i imagepath -ss time -i musicpath -c:v libx264 -pix_fmt yuv420p -c:a copy -shortest -y -strict -2 result.mp4
-            return new String[]{"tools/ffmpeg.exe", "-loop", "1", "-f", "image2", "-r", "1", "-i", "\"" + image.getPath() + "\"", "-ss", String.format("%02d", seek[0]) + ":" + String.format("%02d", seek[1]) + ":" + String.format("%02d", seek[2]), "-i", "\"" + music.getPath() + "\"", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "copy", "-shortest", "-y", "-strict", "-2", "tmp/result.mp4"};
+            URL file_url = new URL(image_url);
+            logger.info("Downloading avatar...");
+            InputStream in = file_url.openStream();
+            Files.copy(in, Paths.get("tmp/image" + getExtension(file_url)), StandardCopyOption.REPLACE_EXISTING);
+            logger.info("Avatar downloaded");
+            return new File("tmp/image" + getExtension(file_url));
         }
-        else if (image.getName().contains(".gif")) // pour les gifs
+        catch (IOException e)
         {
-            // output : tools/ffmpeg.exe -ignore_loop 0 -i imagepath -ss time -i musicpath -c:v libx264 -pix_fmt yuv420p -crf 40 -c:a copy -shortest -y -strict -2 result.mp4
-            return new String[]{"tools/ffmpeg.exe", "-ignore_loop", "0", "-i", "\"" + image.getPath() + "\"", "-ss", String.format("%02d", seek[0]) + ":" + String.format("%02d", seek[1]) + ":" + String.format("%02d", seek[2]), "-i", "\"" + music.getPath() + "\"", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "40", "-c:a", "copy", "-shortest", "-y", "-strict", "-2", "tmp/result.mp4"};
-        }
-        else if (image.getName().contains(".jpg") || image.getName().contains(".jpeg")) // pour les jpg
-        {
-            // output : tools/ffmpeg.exe -loop 1 -f image2 -r 1 -i imagepath -ss time -i musicpath -c:a copy -shortest -y -strict -2 result.mp4
-            return new String[]{"tools/ffmpeg.exe", "-loop", "1", "-f", "image2", "-r", "1", "-i", "\"" + image.getPath() + "\"", "-ss", String.format("%02d", seek[0]) + ":" + String.format("%02d", seek[1]) + ":" + String.format("%02d", seek[2]), "-i", "\"" + music.getPath() + "\"", "-c:a", "copy", "-shortest", "-y", "-strict", "-2", "tmp/result.mp4"};
+            logger.debug(e.toString());
         }
         return null;
     }
 
-    private String formatText(String[] tab)
+    private String getExtension(URL file_url)
     {
-        int compte = 0;
-        String result = "";
-        for(int i = 0; i < tab.length; i++)
+        int i = String.valueOf(file_url).length() - 1;
+        while(String.valueOf(file_url).charAt(i) != '.')
         {
-            compte+= tab[i].length();
-            if(compte >= 15)
-            {
-                tab[i] += "\n";
-                compte = 0;
-            }
-            result += tab[i] + " ";
+            i--;
         }
-        return result;
+        return String.valueOf(file_url).substring(i, String.valueOf(file_url).length() - 10);
+    }
+
+    private void reduceVideoUnder8Mo(File video)
+    {
+        String[] command = {ffmpeg.getPath(), "-y", "-i", video.getPath(), "-c:v", "libx264", "-b:v", String.valueOf(getBitrateUnder8Mo(video)), "-pass", "1", "-an", "-f", "null", "NUL", ";", "`", ffmpeg.getPath(), "-i", video.getPath(), "-c:v", "libx264", "-b:v", String.valueOf(getBitrateUnder8Mo(video)), "-pass", "2", "-c:a", "aac", "-b:a", "128k", "output.mp4"};
+        launchCommand(command);
+    }
+
+    private int getBitrateUnder8Mo(File video)
+    {
+        return 8000*getVideoLength(video);
+    }
+    
+    private int getVideoLength(File video)
+    {
+        String[] command = {ffprobe.getPath(), "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", video.getPath()};
+        String out = launchCommand(command);
+        return Integer.parseInt(out.split(".")[0]) + 1;
     }
 }

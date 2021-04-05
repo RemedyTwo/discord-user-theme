@@ -160,10 +160,8 @@ public class MyListener extends ListenerAdapter
         int[] musicSeek = getYoutubeSeek(musicURL);
         File videoFile = new File("tmp/video.mp4");
         File musicFile = new File("tmp/music.mp3");
-        String[] videoCommand = {youtubedl.getPath(), "-fbestvideo", "-o", "\"" + videoFile.getPath() + "\"", videoURL};
-        String[] musicCommand = {youtubedl.getPath(), "--extract-audio", "--audio-format", "mp3", "-o", musicFile.getPath(), musicURL};
-        launchCommand(videoCommand);
-        launchCommand(musicCommand);
+        downloadVideo(videoFile, videoURL);
+        downloadAudio(musicFile, musicURL);
         File output = new File("tmp/output.mp4");
         String[] mixCommand = {ffmpeg.getPath(), 
         "-ss", String.format("%02d", videoSeek[0]) + ":" + String.format("%02d", videoSeek[1]) + ":" + String.format("%02d", videoSeek[2]), "-i", videoFile.getPath(), 
@@ -218,8 +216,7 @@ public class MyListener extends ListenerAdapter
             File image = downloadAvatar(user_avatar_url);
 
             File music = new File("tmp/music.mp3");
-            String[] youtubedl_cmd = {youtubedl.getPath(), "--extract-audio", "--audio-format", "mp3", "-o", music.getPath(), music_link};
-            launchCommand(youtubedl_cmd);
+            downloadAudio(music, music_link);
 
             File resultat = new File("tmp/result.mp4");
             String[] cmd = {};
@@ -252,7 +249,19 @@ public class MyListener extends ListenerAdapter
 
     private void commandVibe(Message message)
     {
-        
+        String videoURL = message.getContentRaw().split(" ")[1];
+        File videoFile = new File("tmp/video.mp4");
+        downloadVideo(videoFile, videoURL);
+
+        File output = new File("tmp/final.mp4");
+        overlayGreenScreen(videoFile, vibingCat, output);
+        if (output.length() > 8000000)
+        {
+            reduceVideoUnder8Mo(output);
+        }
+        logger.info("Sending video...");
+        message.getChannel().sendFile(output).queue();
+        logger.info("Video sent");
     }
 
     private String launchCommand(String[] command)
@@ -288,6 +297,24 @@ public class MyListener extends ListenerAdapter
             logger.debug(e.toString());
         }
         return "";
+    }
+
+    private String downloadAudio(File file, String url)
+    {
+        String[] command = {youtubedl.getPath(), "--extract-audio", "--audio-format", "mp3", "-o", file.getPath(), url};
+        return launchCommand(command);
+    }
+
+    private String downloadVideo(File file, String url)
+    {
+        String[] command = {youtubedl.getPath(), "-fbestvideo", "-o", file.getPath(), url};
+        return launchCommand(command);
+    }
+
+    private String overlayGreenScreen(File input, File overlay, File output)
+    {
+        String[] command = {ffmpeg.getPath(), "-i", input.getPath(), "-i", overlay.getPath(), "-filter_complex", "'[1:v]colorkey=0x<color>:<similarity>:<blend>[ckout];[0:v][ckout]overlay[out]'", "-map", "'[out]'", output.getPath()};
+        return launchCommand(command);
     }
     
     private String arrayToString(String[] array)

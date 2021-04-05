@@ -22,6 +22,11 @@ import net.dv8tion.jda.api.hooks.ListenerAdapter;
 
 public class MyListener extends ListenerAdapter 
 {
+    private final File averageFan = new File("resources/AverageFan.mp4");
+    private final File vibingCat = new File ("resources/VibingCat.mp4");
+
+    private final File Consolas = new File("resources/Consolas.ttf");
+
     private final File ffmpeg = new File("tools/ffmpeg.exe");
     private final File ffprobe = new File("tools/ffprobe.exe");
     private final File youtubedl = new File("tools/youtube-dl.exe");
@@ -37,6 +42,7 @@ public class MyListener extends ListenerAdapter
         switch (message.getContentRaw().split(" ")[0])
         {
             case ("!help"):
+                logger.info("Command found: \"" + message.getContentRaw() + "\"");
                 event.getChannel().sendMessage
                 (
                     "`!theme musiclink (@mention) (time)`\n" +
@@ -46,15 +52,23 @@ public class MyListener extends ListenerAdapter
                 break;
 
             case ("!meme"):
+                logger.info("Command found: \"" + message.getContentRaw() + "\"");
                 commandMeme(message);
                 break;
 
-            case("!montage"):
+            case ("!montage"):
+                logger.info("Command found: \"" + message.getContentRaw() + "\"");
                 commandMontage(message);
                 break;
 
-            case("!theme"):
+            case ("!theme"):
+                logger.info("Command found: \"" + message.getContentRaw() + "\"");
                 commandTheme(message);
+                break;
+
+            case ("!vibe"):
+                logger.info("Command found: \"" + message.getContentRaw() + "\"");
+                commandVibe(message);
                 break;
         }
         emptyFolder(new File("tmp/"));
@@ -77,50 +91,46 @@ public class MyListener extends ListenerAdapter
 
     private void commandMeme(Message message)
     {
-        logger.info("Command found: \"" + message.getContentRaw() + "\"");
+        message.getChannel().sendTyping().queue();
+        try
+        {
+            String text_a = message.getContentRaw().split(" ")[1].split(";")[0];
+            text_a = formatText(text_a.split(" "));
+            PrintWriter pw_a = new PrintWriter("tmp/text1.txt");
+            pw_a.println(text_a);
+            pw_a.close();
+            logger.info("First text set : " + text_a);
+            String text_b = message.getContentRaw().split(" ")[1].split(";")[1];
+            text_b = formatText(text_b.split(" "));
+            PrintWriter pw_b = new PrintWriter("tmp/text2.txt");
+            pw_b.println(text_b);
+            pw_b.close();
+            logger.info("Second text set : " + text_b);
+
             try
             {
-                message.getChannel().sendTyping().queue();
+                File meme = new File("tmp/final.mp4");
+                String[] cmd = {ffmpeg.getPath(), "-i", averageFan.getPath(), "-vf", 
+                "\"[in]drawtext=fontfile=" + Consolas.getPath() + ":", "textfile=tmp/text1.txt:", "fontcolor=black:", "fontsize=30:", "x=(w/4)-(text_w/2):", "y=(h-text_h)/2/2/2/2,", 
+                "drawtext=fontfile=" + Consolas.getPath() + ":", "textfile=tmp/text2.txt:", "fontcolor=black:", "fontsize=30:", "x=((w/2)+(w/4))-(text_w/2):", "y=(h-text_h)/2/2/2/2[out]\"", 
+                "-codec:a", "copy", "-y", meme.getPath()};
 
-                String text_a = message.getContentRaw().split(" ")[1].split(";")[0];
-                text_a = formatText(text_a.split(" "));
-                PrintWriter pw_a = new PrintWriter("tmp/text1.txt");
-                pw_a.println(text_a);
-                pw_a.close();
-                logger.info("First text set : " + text_a);
-                String text_b = message.getContentRaw().split(" ")[1].split(";")[1];
-                text_b = formatText(text_b.split(" "));
-                PrintWriter pw_b = new PrintWriter("tmp/text2.txt");
-                pw_b.println(text_b);
-                pw_b.close();
-                logger.info("Second text set : " + text_b);
-
-                try
-                {
-                    File meme = new File("tmp/final.mp4");
-                    String[] cmd = {ffmpeg.getPath(), "-i", "resources/meme.mp4", "-vf", 
-                    "\"[in]drawtext=fontfile=resources/Consolas.ttf:", "textfile=tmp/text1.txt:", "fontcolor=black:", "fontsize=30:", "x=(w/4)-(text_w/2):", "y=(h-text_h)/2/2/2/2,", 
-                    "drawtext=fontfile=resources/Consolas.ttf:", "textfile=tmp/text2.txt:", "fontcolor=black:", "fontsize=30:", "x=((w/2)+(w/4))-(text_w/2):", "y=(h-text_h)/2/2/2/2[out]\"", 
-                    "-codec:a", "copy", "-y", meme.getPath()};
-
-                    launchCommand(cmd);
-                    logger.info("Sending video...");
-                    message.getChannel().sendMessage(message.getAuthor().getAsMention()).addFile(meme).queue();
-                    logger.info("Video sent");
-                    logger.info("Deleting files...");
-                    logger.info("Files deleted");
-                }
-                catch (IllegalArgumentException e)
-                {
-                    logger.debug(e.toString());
-                    message.getChannel().sendMessage("Bug.").queue();
-                }
+                launchCommand(cmd);
+                logger.info("Sending video...");
+                message.getChannel().sendMessage(message.getAuthor().getAsMention()).addFile(meme).queue();
+                logger.info("Video sent");
             }
-            catch (FileNotFoundException e)
+            catch (IllegalArgumentException e)
             {
                 logger.debug(e.toString());
                 message.getChannel().sendMessage("Bug.").queue();
             }
+        }
+        catch (FileNotFoundException e)
+        {
+            logger.debug(e.toString());
+            message.getChannel().sendMessage("Bug.").queue();
+        }
     }
 
     private String formatText(String[] tab)
@@ -142,7 +152,6 @@ public class MyListener extends ListenerAdapter
 
     private void commandMontage(Message message)
     {
-        logger.info("Command found: \"" + message.getContentRaw() + "\"");
         message.getChannel().sendTyping().queue();
 
         String videoURL = message.getContentRaw().split(" ")[1];
@@ -159,7 +168,7 @@ public class MyListener extends ListenerAdapter
         String[] mixCommand = {ffmpeg.getPath(), 
         "-ss", String.format("%02d", videoSeek[0]) + ":" + String.format("%02d", videoSeek[1]) + ":" + String.format("%02d", videoSeek[2]), "-i", videoFile.getPath(), 
         "-ss", String.format("%02d", musicSeek[0]) + ":" + String.format("%02d", musicSeek[1]) + ":" + String.format("%02d", musicSeek[2]), "-i", musicFile.getPath(), 
-        "-vcodec", "copy", "-acodec", "copy", "-map", "0:0", "-map", "1:0", output.getPath()};
+        "-vcodec", "copy", "-acodec", "copy", "-map", "0:0", "-map", "1:0", "-shortest", output.getPath()};
         launchCommand(mixCommand);
 
         if (output.length() > 8000000)
@@ -173,7 +182,6 @@ public class MyListener extends ListenerAdapter
     private void commandTheme(Message message)
     {
         User user = message.getAuthor();
-        logger.info("Command found: \"" + message.getContentRaw() + "\"");
         message.getChannel().sendTyping().queue();
         String[] message_array = message.getContentRaw().split(" ");
         String music_link = "";
@@ -240,6 +248,11 @@ public class MyListener extends ListenerAdapter
         {
             message.getChannel().sendMessage("La vidéo est trop lourde.").queue();
         }
+    }
+
+    private void commandVibe(Message message)
+    {
+        
     }
 
     private String launchCommand(String[] command)
@@ -339,7 +352,8 @@ public class MyListener extends ListenerAdapter
 
     private void reduceVideoUnder8Mo(File video)
     {
-        String[] command = {ffmpeg.getPath(), "-y", "-i", video.getPath(), "-c:v", "libx264", "-b:v", String.valueOf(getBitrateUnder8Mo(video)), "-pass", "1", "-an", "-f", "null", "NUL", ";", "`", ffmpeg.getPath(), "-i", video.getPath(), "-c:v", "libx264", "-b:v", String.valueOf(getBitrateUnder8Mo(video)), "-pass", "2", "-c:a", "aac", "-b:a", "128k", "output.mp4"};
+        String[] command = {ffmpeg.getPath(), "-y", "-i", video.getPath(), "-c:v", "libx264", "-b:v", String.valueOf(getBitrateUnder8Mo(video)), "-pass", "1", "-an", "-f", "null", "NUL", ";", "`", 
+        ffmpeg.getPath(), "-i", video.getPath(), "-c:v", "libx264", "-b:v", String.valueOf(getBitrateUnder8Mo(video)), "-pass", "2", "-c:a", "aac", "-b:a", "128k", "output.mp4"};
         launchCommand(command);
     }
 

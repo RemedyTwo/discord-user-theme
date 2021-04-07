@@ -94,13 +94,14 @@ public class MyListener extends ListenerAdapter
         message.getChannel().sendTyping().queue();
         try
         {
-            String text_a = message.getContentRaw().split(" ")[1].split(";")[0];
+            String contenu = message.getContentRaw().replace("!meme ", "");
+            String text_a = contenu.split(";")[0];
             text_a = formatText(text_a.split(" "));
             PrintWriter pw_a = new PrintWriter("tmp/text1.txt");
             pw_a.println(text_a);
             pw_a.close();
             logger.info("First text set : " + text_a);
-            String text_b = message.getContentRaw().split(" ")[1].split(";")[1];
+            String text_b = contenu.split(";")[1];
             text_b = formatText(text_b.split(" "));
             PrintWriter pw_b = new PrintWriter("tmp/text2.txt");
             pw_b.println(text_b);

@@ -252,7 +252,7 @@ public class MyListener extends ListenerAdapter
     {
         String videoURL = message.getContentRaw().split(" ")[1];
         File videoFile = new File("tmp/video.mp4");
-        downloadVideo(videoFile, videoURL);
+        downloadVideoAndAudio(videoFile, videoURL);
 
         File output = new File("tmp/final.mp4");
         overlayGreenScreen(videoFile, vibingCat, output);
@@ -300,24 +300,38 @@ public class MyListener extends ListenerAdapter
         return "";
     }
 
-    private String downloadAudio(File file, String url)
-    {
-        String[] command = {youtubedl.getPath(), "--extract-audio", "--audio-format", "mp3", "-o", file.getPath(), url};
-        return launchCommand(command);
-    }
-
     private String downloadVideo(File file, String url)
     {
         String[] command = {youtubedl.getPath(), "-fbestvideo", "-o", file.getPath(), url};
         return launchCommand(command);
     }
 
+    private String downloadAudio(File file, String url)
+    {
+        String[] command = {youtubedl.getPath(), "--extract-audio", "--audio-format", "mp3", "-o", file.getPath(), url};
+        return launchCommand(command);
+    }
+
+    private String downloadVideoAndAudio(File file, String url)
+    {
+        String[] command = {youtubedl.getPath(), "-fbest", "-o", file.getPath(), url};
+        return launchCommand(command);
+    }
+
     private String overlayGreenScreen(File input, File overlay, File output)
     {
-        String[] command = {ffmpeg.getPath(), "-i", input.getPath(), "-i", overlay.getPath(), "-filter_complex", "'[1:v]colorkey=0x<color>:<similarity>:<blend>[ckout];[0:v][ckout]overlay[out]'", "-map", "'[out]'", output.getPath()};
+        String[] command = {ffmpeg.getPath(), "-y", "-i", input.getPath(), "-i", overlay.getPath(), "-filter_complex", "\"[1:v]reverse[r];[1:v][r]concat,loop=" + (getVideoLength(input)/12-1) + ":360,setpts=N/30/TB[loop],[loop]scale=" + getVideoResolution(input) + "[ovrl],[ovrl]colorkey=0x00D700:0.5:0[ckout];[0:v][ckout]overlay[out]\"", "-map", "\"[out]\"", "-map", "0:a", output.getPath()};
         return launchCommand(command);
     }
     
+    private void reduceVideoUnder8Mo(File video)
+    {
+        String[] first_command = {ffmpeg.getPath(), "-y", "-i", video.getPath(), "-c:v", "libx264", "-b:v", String.valueOf(getBitrateUnder8Mo(video)) + "ka", "-pass", "1", "-an", "-f", "null", "NUL"};
+        launchCommand(first_command);
+        String[] second_command = {ffmpeg.getPath(), "-i", video.getPath(), "-c:v", "libx264", "-b:v", String.valueOf(getBitrateUnder8Mo(video)) + "k", "-pass", "2", "-c:a", "aac", "-b:a", "128k", "output.mp4"};
+        launchCommand(second_command);
+    }
+
     private String arrayToString(String[] array)
     {
         String string = "";
@@ -378,22 +392,21 @@ public class MyListener extends ListenerAdapter
         return String.valueOf(file_url).substring(i, String.valueOf(file_url).length() - 10);
     }
 
-    private void reduceVideoUnder8Mo(File video)
-    {
-        String[] command = {ffmpeg.getPath(), "-y", "-i", video.getPath(), "-c:v", "libx264", "-b:v", String.valueOf(getBitrateUnder8Mo(video)), "-pass", "1", "-an", "-f", "null", "NUL", ";", "`", 
-        ffmpeg.getPath(), "-i", video.getPath(), "-c:v", "libx264", "-b:v", String.valueOf(getBitrateUnder8Mo(video)), "-pass", "2", "-c:a", "aac", "-b:a", "128k", "output.mp4"};
-        launchCommand(command);
-    }
-
     private int getBitrateUnder8Mo(File video)
     {
-        return 8000*getVideoLength(video);
+        return 8000/getVideoLength(video);
     }
     
     private int getVideoLength(File video)
     {
         String[] command = {ffprobe.getPath(), "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", video.getPath()};
         String out = launchCommand(command);
-        return Integer.parseInt(out.split(".")[0]) + 1;
+        return Double.valueOf(out).intValue() + 1;
+    }
+
+    private String getVideoResolution(File video)
+    {
+        String[] command = {ffprobe.getPath(), "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=s=x:p=0", video.getPath()};
+        return launchCommand(command).replace("x", ":");
     }
 }

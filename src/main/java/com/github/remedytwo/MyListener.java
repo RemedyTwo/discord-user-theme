@@ -110,21 +110,20 @@ public class MyListener extends ListenerAdapter
 
             try
             {
-                File meme = new File("tmp/final.mp4");
-                String[] cmd = {ffmpeg.getPath(), "-i", averageFan.getPath(), "-vf", 
-                "\"[in]drawtext=fontfile=" + Consolas.getPath() + ":", "textfile=tmp/text1.txt:", "fontcolor=black:", "fontsize=30:", "x=(w/4)-(text_w/2):", "y=(h-text_h)/2/2/2/2,", 
-                "drawtext=fontfile=" + Consolas.getPath() + ":", "textfile=tmp/text2.txt:", "fontcolor=black:", "fontsize=30:", "x=((w/2)+(w/4))-(text_w/2):", "y=(h-text_h)/2/2/2/2[out]\"", 
-                "-codec:a", "copy", "-y", meme.getPath()};
+                File[] input = {this.averageFan};
+                File output = new File("tmp/final.mp4");
+                String command = "-vf \"[in]drawtext=fontfile=" + Consolas.getPath() + ":textfile=tmp/text1.txt:fontcolor=black:fontsize=30:x=(w/4)-(text_w/2):y=(h-text_h)/2/2/2/2, drawtext=fontfile=" + Consolas.getPath() + ":textfile=tmp/text2.txt:fontcolor=black:fontsize=30:x=((w/2)+(w/4))-(text_w/2):y=(h-text_h)/2/2/2/2[out]\" -codec:a copy -y";
 
-                launchCommand(cmd);
+                ffmpeg ffmpeg = new ffmpeg(input, command, output);
+                ffmpeg.launch();
                 logger.info("Sending video...");
-                message.getChannel().sendMessage(message.getAuthor().getAsMention()).addFile(meme).queue();
+                message.getChannel().sendMessage(message.getAuthor().getAsMention()).addFile(output).queue();
                 logger.info("Video sent");
             }
             catch (IllegalArgumentException e)
             {
                 logger.debug(e.toString());
-                message.getChannel().sendMessage("Bug.").queue();
+                message.getChannel().sendMessage(e.toString()).queue();
             }
         }
         catch (FileNotFoundException e)

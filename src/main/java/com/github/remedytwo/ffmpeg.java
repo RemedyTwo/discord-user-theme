@@ -39,7 +39,7 @@ public class ffmpeg
         return fullCommand;
     }
 
-    public File launchFFmpeg ()
+    public File launch ()
     {
         return launchCommand(buildCommand());
     }
